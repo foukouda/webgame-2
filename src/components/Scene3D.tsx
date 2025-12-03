@@ -44,6 +44,7 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
 }) {
   const playerRef = useRef<THREE.Mesh>(null);
   const shotgunRef = useRef<THREE.Group>(null);
+  const pistolRef = useRef<THREE.Group>(null);
   const spotLightRef = useRef<THREE.SpotLight>(null);
   const muzzleFlashRef = useRef<THREE.PointLight>(null);
   const targetRef = useRef<THREE.Object3D>(new THREE.Object3D());
@@ -54,6 +55,7 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
   const [molotovs, setMolotovs] = useState<Array<{ id: number; x: number; z: number; vx: number; vz: number; vy: number; y: number; life: number }>>([]);
   const [fireZones, setFireZones] = useState<Array<{ id: number; x: number; z: number; life: number; radius: number }>>([]);
   const [muzzleFlash, setMuzzleFlash] = useState(false);
+  const [currentWeapon, setCurrentWeapon] = useState<'shotgun' | 'pistol'>('shotgun');
   const molotovIdCounter = useRef(0);
   const fireZoneIdCounter = useRef(0);
   const staminaRef = useRef(100);
@@ -279,14 +281,39 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
       setMuzzleFlash(true);
       setTimeout(() => setMuzzleFlash(false), 50);
       
-      // Tirer 20 projectiles
       const newProjectiles: typeof projectiles = [];
       const networkProjectiles: Array<{ x: number; z: number; vx: number; vz: number; damage: number }> = [];
       
-      for (let i = 0; i < 20; i++) {
-        const spreadAngle = (Math.random() - 0.5) * 0.4; // Dispersion aléatoire
-        const angle = shotgunAngle.current + spreadAngle;
-        const speed = 50 + Math.random() * 10;
+      if (currentWeapon === 'shotgun') {
+        // Fusil à pompe : 20 projectiles avec dispersion
+        for (let i = 0; i < 20; i++) {
+          const spreadAngle = (Math.random() - 0.5) * 0.4; // Dispersion aléatoire
+          const angle = shotgunAngle.current + spreadAngle;
+          const speed = 50 + Math.random() * 10;
+          
+          const proj = {
+            id: projectileIdCounter.current++,
+            x: playerRef.current.position.x,
+            z: playerRef.current.position.z,
+            vx: Math.sin(angle) * speed,
+            vz: Math.cos(angle) * speed,
+            life: 1.5, // Durée de vie en secondes
+            damage: 10 // dégâts par projectile
+          };
+          
+          newProjectiles.push(proj);
+          networkProjectiles.push({
+            x: proj.x,
+            z: proj.z,
+            vx: proj.vx,
+            vz: proj.vz,
+            damage: proj.damage
+          });
+        }
+      } else if (currentWeapon === 'pistol') {
+        // Pistolet : 1 projectile précis, plus rapide, plus de dégâts
+        const angle = shotgunAngle.current;
+        const speed = 80; // Plus rapide que le shotgun
         
         const proj = {
           id: projectileIdCounter.current++,
@@ -294,8 +321,8 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
           z: playerRef.current.position.z,
           vx: Math.sin(angle) * speed,
           vz: Math.cos(angle) * speed,
-          life: 1.5, // Durée de vie en secondes
-          damage: 10 // dégâts par projectile
+          life: 2, // Durée de vie plus longue
+          damage: 35 // Plus de dégâts par balle
         };
         
         newProjectiles.push(proj);
@@ -314,18 +341,31 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
       multiplayer?.sendShoot(networkProjectiles);
     };
     
+    // Changement d'arme avec la molette
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setCurrentWeapon(prev => {
+        const newWeapon = prev === 'shotgun' ? 'pistol' : 'shotgun';
+        // Émettre un événement pour l'UI
+        window.dispatchEvent(new CustomEvent('weaponChange', { detail: { weapon: newWeapon } }));
+        return newWeapon;
+      });
+    };
+    
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('wheel', handleWheel, { passive: false });
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('wheel', handleWheel);
     };
-  }, []);
+  }, [currentWeapon]);
   
   useFrame((state, delta) => {
     if (!playerRef.current) return;
@@ -676,14 +716,24 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
         shotgunRef.current.position.copy(playerRef.current.position);
         shotgunRef.current.position.y = 0.8;
         shotgunRef.current.rotation.y = shotgunAngle.current;
+        shotgunRef.current.visible = currentWeapon === 'shotgun';
+      }
+      
+      // Mettre à jour le pistolet
+      if (pistolRef.current) {
+        pistolRef.current.position.copy(playerRef.current.position);
+        pistolRef.current.position.y = 0.8;
+        pistolRef.current.rotation.y = shotgunAngle.current;
+        pistolRef.current.visible = currentWeapon === 'pistol';
       }
     }
     
     // Mettre à jour le flash du canon
-    if (muzzleFlashRef.current && shotgunRef.current && playerRef.current) {
+    if (muzzleFlashRef.current && playerRef.current) {
       muzzleFlashRef.current.intensity = muzzleFlash ? 5 : 0;
-      const flashX = playerRef.current.position.x + Math.sin(shotgunAngle.current) * 1.2;
-      const flashZ = playerRef.current.position.z + Math.cos(shotgunAngle.current) * 1.2;
+      const flashDist = currentWeapon === 'shotgun' ? 1.2 : 0.8;
+      const flashX = playerRef.current.position.x + Math.sin(shotgunAngle.current) * flashDist;
+      const flashZ = playerRef.current.position.z + Math.cos(shotgunAngle.current) * flashDist;
       muzzleFlashRef.current.position.set(flashX, 0.8, flashZ);
     }
   });
@@ -700,7 +750,7 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
       </mesh>
       
       {/* Fusil à pompe */}
-      <group ref={shotgunRef}>
+      <group ref={shotgunRef} visible={currentWeapon === 'shotgun'}>
         {/* Corps du fusil */}
         <mesh position={[0, 0, 0.6]} rotation={[0, -Math.PI / 2, 0]}>
           <boxGeometry args={[1, 0.15, 0.15]} />
@@ -715,6 +765,30 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
         <mesh position={[0, -0.1, 0.1]} rotation={[0, -Math.PI / 2, 0]}>
           <boxGeometry args={[0.3, 0.25, 0.12]} />
           <meshStandardMaterial color="#4a3520" />
+        </mesh>
+      </group>
+      
+      {/* Pistolet */}
+      <group ref={pistolRef} visible={currentWeapon === 'pistol'}>
+        {/* Corps du pistolet */}
+        <mesh position={[0, 0, 0.3]} rotation={[0, -Math.PI / 2, 0]}>
+          <boxGeometry args={[0.4, 0.2, 0.12]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        {/* Canon */}
+        <mesh position={[0, 0.05, 0.6]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.04, 0.04, 0.35, 8]} />
+          <meshStandardMaterial color="#333333" />
+        </mesh>
+        {/* Poignée */}
+        <mesh position={[0, -0.15, 0.15]} rotation={[0.3, -Math.PI / 2, 0]}>
+          <boxGeometry args={[0.25, 0.2, 0.1]} />
+          <meshStandardMaterial color="#2a2a2a" />
+        </mesh>
+        {/* Détail - glissière */}
+        <mesh position={[0, 0.08, 0.35]} rotation={[0, -Math.PI / 2, 0]}>
+          <boxGeometry args={[0.3, 0.06, 0.1]} />
+          <meshStandardMaterial color="#444444" />
         </mesh>
       </group>
       
@@ -2485,7 +2559,17 @@ export default function Scene3D() {
   const [playerStamina, setPlayerStamina] = useState(100);
   const [ringTimer, setRingTimer] = useState(7 * 60); // 7 minutes en secondes
   const [ringRadius, setRingRadius] = useState(80);
+  const [currentWeapon, setCurrentWeapon] = useState<'shotgun' | 'pistol'>('shotgun');
   const gameStartTimeRef = useRef(Date.now());
+  
+  // Écouter les changements d'arme depuis le composant Player
+  useEffect(() => {
+    const handleWeaponChange = (e: CustomEvent) => {
+      setCurrentWeapon(e.detail.weapon);
+    };
+    window.addEventListener('weaponChange' as any, handleWeaponChange);
+    return () => window.removeEventListener('weaponChange' as any, handleWeaponChange);
+  }, []);
   
   // Hook multijoueur
   const {
@@ -2635,9 +2719,26 @@ export default function Scene3D() {
           <p><span className="font-bold">E</span> : Lampe ON/OFF</p>
           <p><span className="font-bold">F</span> : Lampe bot ON/OFF</p>
           <p><span className="font-bold">Y</span> : FOV raycast {showRaycast ? 'ON' : 'OFF'}</p>
+          <p><span className="font-bold">Molette</span> : Changer d'arme</p>
           <p><span className="font-bold">Souris</span> : Orienter lampe</p>
           <p><span className="font-bold">Clic gauche</span> : Tirer</p>
         </div>
+      </div>
+      
+      {/* Indicateur d'arme actuelle */}
+      <div className="absolute bottom-24 right-4 z-10 bg-black/80 text-white p-3 rounded-lg border border-gray-600">
+        <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Arme</div>
+        <div className="flex gap-2">
+          <div className={`px-3 py-2 rounded ${currentWeapon === 'shotgun' ? 'bg-orange-600' : 'bg-gray-700'} transition-colors`}>
+            <div className="text-sm font-bold">🔫</div>
+            <div className="text-xs">Fusil</div>
+          </div>
+          <div className={`px-3 py-2 rounded ${currentWeapon === 'pistol' ? 'bg-blue-600' : 'bg-gray-700'} transition-colors`}>
+            <div className="text-sm font-bold">🔫</div>
+            <div className="text-xs">Pistolet</div>
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 mt-1 text-center">Molette pour changer</div>
       </div>
       
       {/* Barres de vie et d'endurance en bas de l'écran */}
