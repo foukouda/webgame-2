@@ -6,12 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "server": "npx ts-node --esm src/server/gameServer.ts",
+    "server:dev": "npx tsx watch src/server/gameServer.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run server:dev\""
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
+    "@types/three": "^0.181.0",
+    "concurrently": "^9.2.1",
     "next": "16.0.6",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "three": "^0.181.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -21,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.6",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

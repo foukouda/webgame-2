@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js + Three.js Project
 
-## Getting Started
+Projet web combinant Next.js et Three.js pour créer des expériences 3D interactives.
 
-First, run the development server:
+## 🚀 Technologies
+
+- **Next.js 16** - Framework React pour le développement web
+- **TypeScript** - Typage statique
+- **Three.js** - Bibliothèque 3D pour le web
+- **React Three Fiber** - Renderer React pour Three.js
+- **React Three Drei** - Helpers utiles pour React Three Fiber
+- **Tailwind CSS** - Framework CSS utility-first
+
+## 📦 Structure du projet
+
+```
+webgame-2/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx          # Page principale avec scène 3D
+│   │   ├── layout.tsx         # Layout de base
+│   │   └── globals.css        # Styles globaux
+│   └── components/
+│       └── Scene3D.tsx        # Composant de scène 3D
+├── public/                    # Assets statiques
+├── package.json
+└── tsconfig.json
+```
+
+## 💻 Démarrage
+
+Lancez le serveur de développement :
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🎮 Utilisation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La scène 3D est interactive :
+- **Clic gauche + glisser** : Rotation de la caméra
+- **Clic droit + glisser** : Pan (déplacement latéral)
+- **Molette** : Zoom avant/arrière
 
-## Learn More
+## 🎨 Personnalisation
 
-To learn more about Next.js, take a look at the following resources:
+### Modifier le cube
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Éditez `src/components/Scene3D.tsx` pour modifier l'objet 3D :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```tsx
+<Box ref={meshRef} args={[2, 2, 2]}>
+  <meshStandardMaterial color="royalblue" />
+</Box>
+```
 
-## Deploy on Vercel
+### Ajouter des objets 3D
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Vous pouvez ajouter d'autres formes depuis `@react-three/drei` :
+- `<Sphere />` - Sphère
+- `<Torus />` - Tore
+- `<Cone />` - Cône
+- `<Cylinder />` - Cylindre
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 Commandes disponibles
+
+- `npm run dev` - Lance le serveur de développement
+- `npm run build` - Compile le projet pour la production
+- `npm start` - Lance le serveur de production
+- `npm run lint` - Vérifie le code avec ESLint
+
+## 📚 Ressources
+
+- [Documentation Next.js](https://nextjs.org/docs)
+- [Documentation Three.js](https://threejs.org/docs)
+- [Documentation React Three Fiber](https://docs.pmnd.rs/react-three-fiber)
+- [Documentation Drei](https://github.com/pmndrs/drei)
+
+## 🎯 Prochaines étapes
+
+Vous pouvez maintenant :
+1. Modifier la scène 3D dans `src/components/Scene3D.tsx`
+2. Ajouter de nouveaux composants 3D
+3. Créer des animations personnalisées
+4. Intégrer des modèles 3D (GLTF, FBX, etc.)
+5. Ajouter des interactions utilisateur avancées
+
+Bon développement ! 🚀
