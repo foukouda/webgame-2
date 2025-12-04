@@ -358,12 +358,24 @@ function Player({ settings, setVisionData, showRaycast, setPlayerStamina, setPla
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('wheel', handleWheel, { passive: false });
     
+    // Écouter l'événement de respawn
+    const handleRespawn = () => {
+      if (playerRef.current) {
+        const spawn = getRandomSpawn();
+        playerRef.current.position.x = spawn.x;
+        playerRef.current.position.z = spawn.z;
+        staminaRef.current = 100;
+      }
+    };
+    window.addEventListener('playerRespawn', handleRespawn);
+    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('playerRespawn', handleRespawn);
     };
   }, [currentWeapon]);
   
@@ -2560,7 +2572,32 @@ export default function Scene3D() {
   const [ringTimer, setRingTimer] = useState(7 * 60); // 7 minutes en secondes
   const [ringRadius, setRingRadius] = useState(80);
   const [currentWeapon, setCurrentWeapon] = useState<'shotgun' | 'pistol'>('shotgun');
+  const [isDead, setIsDead] = useState(false);
+  const [deathCause, setDeathCause] = useState<string>('');
   const gameStartTimeRef = useRef(Date.now());
+  
+  // Détecter la mort du joueur
+  useEffect(() => {
+    if (playerHealth <= 0 && !isDead) {
+      setIsDead(true);
+      setDeathCause('Vous avez été éliminé !');
+    }
+  }, [playerHealth, isDead]);
+  
+  // Fonction pour relancer la partie
+  const respawnPlayer = () => {
+    setPlayerHealth(100);
+    setPlayerStamina(100);
+    setIsDead(false);
+    setDeathCause('');
+    gameStartTimeRef.current = Date.now();
+    setRingTimer(7 * 60);
+    setRingRadius(80);
+    // Envoyer le respawn au serveur
+    sendRespawn();
+    // Réinitialiser la position du joueur via un événement
+    window.dispatchEvent(new CustomEvent('playerRespawn'));
+  };
   
   // Écouter les changements d'arme depuis le composant Player
   useEffect(() => {
@@ -2622,11 +2659,16 @@ export default function Scene3D() {
       if (e.key.toLowerCase() === 'y') {
         setShowRaycast(prev => !prev);
       }
+      // Espace pour respawn quand mort
+      if (e.key === ' ' && isDead) {
+        e.preventDefault();
+        respawnPlayer();
+      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isDead]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -2636,6 +2678,45 @@ export default function Scene3D() {
 
   return (
     <div className="w-full h-screen relative">
+      {/* Écran de mort */}
+      {isDead && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="text-center">
+            {/* Icône de mort */}
+            <div className="text-8xl mb-6 animate-pulse">💀</div>
+            
+            {/* Titre */}
+            <h1 className="text-6xl font-bold text-red-600 mb-4 tracking-wider" style={{ textShadow: '0 0 20px rgba(220, 38, 38, 0.5)' }}>
+              MORT
+            </h1>
+            
+            {/* Cause de la mort */}
+            <p className="text-xl text-gray-300 mb-8">{deathCause}</p>
+            
+            {/* Stats */}
+            <div className="bg-black/50 rounded-lg p-4 mb-8 inline-block">
+              <div className="text-gray-400 text-sm mb-2">Temps survécu</div>
+              <div className="text-2xl text-white font-bold">
+                {formatTime(7 * 60 - ringTimer)}
+              </div>
+            </div>
+            
+            {/* Bouton de respawn */}
+            <div>
+              <button
+                onClick={respawnPlayer}
+                className="px-8 py-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white text-xl font-bold rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-red-500/50"
+              >
+                🔄 REJOUER
+              </button>
+            </div>
+            
+            {/* Instruction */}
+            <p className="text-gray-500 text-sm mt-4">Appuyez sur Espace ou cliquez pour rejouer</p>
+          </div>
+        </div>
+      )}
+      
       {/* Indicateur de connexion */}
       <div className={`absolute top-4 right-4 z-20 px-4 py-2 rounded-lg ${connected ? 'bg-green-600' : 'bg-red-600'} text-white text-sm font-bold`}>
         {connected ? `🟢 Connecté (${playerCount} joueurs)` : '🔴 Hors ligne'}
